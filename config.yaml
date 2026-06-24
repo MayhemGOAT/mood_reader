@@ -1,0 +1,40 @@
+# Mood taxonomy: Russell's circumplex (valence × energy) + discrete vibes
+vibes:
+  - chill
+  - happy
+  - energetic
+  - melancholic
+  - aggressive
+  - romantic
+  - uplifting
+  - dark
+
+# Model settings
+model:
+  n_estimators: 300
+  max_depth: 8
+  learning_rate: 0.05
+  random_state: 42
+
+# Feature extraction
+audio:
+  sample_rate: 22050
+  duration_seconds: 30  # analyze first N seconds
+  n_mfcc: 20
+
+lyrics:
+  emotion_model: j-hartmann/emotion-english-distilroberta-base
+  max_length: 512
+
+paths:
+  model_dir: models
+  data_dir: data
+
+# External APIs (credentials in .env)
+apis:
+  genius:
+    enabled: true
+  spotify:
+    enabled: true
+  lastfm:
+    enabled: true

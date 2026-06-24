@@ -1,0 +1,31 @@
+track_id,title,lyrics,audio_path,vibe,valence,energy
+1,Sunrise Run,"Wake up to golden light / feet on pavement feel alive / every breath is fire / running toward the sky",,uplifting,0.82,0.78
+2,Quiet Rain,"Soft rain on the window pane / coffee steam and slow thoughts / nothing urgent today / just breathing in the grey",,chill,0.62,0.22
+3,Neon Rush,"Bass hits like thunder in my chest / lights blur we never rest / sweat and sound until the dawn / this night keeps moving on",,energetic,0.74,0.92
+4,Empty Room,"Photos fading on the wall / your voice still echoes down the hall / I sleep alone again tonight / missing what we used to write",,melancholic,0.18,0.28
+5,Paper Hearts,"You wrote my name inside a heart / we swore we'd never drift apart / slow dancing in the kitchen light / holding on through every night",,romantic,0.86,0.34
+6,Break The Chain,"I won't bow I won't break / every scar is fuel for rage / punch the air and scream it out / this is what I'm all about",,aggressive,0.22,0.88
+7,Smile Wide,"Jump and laugh the world is bright / colors bursting left and right / sing it loud with all your friends / this good feeling never ends",,happy,0.90,0.72
+8,Shadow Lane,"Cold wind whispers through the trees / secrets buried on my knees / moonlight hides the things I've done / darkness waits for everyone",,dark,0.12,0.58
+9,Late Night Drive,"Windows down the city glows / radio low the tempo flows / headlights paint the empty road / carrying a lighter load",,chill,0.58,0.38
+10,Firestarter,"Hands up let the beat explode / heartbeat racing overload / jump until the floor gives way / we own the night we own today",,energetic,0.68,0.95
+11,Blue Hour,"Tears fall slow on piano keys / memories like autumn leaves / love slipped through my open hands / trying hard to understand",,melancholic,0.20,0.25
+12,Summer Glow,"Barefoot on the warm sand / laughing loud with your hand in mine / lemonade and endless days / sunshine in our veins",,happy,0.88,0.65
+13,Midnight Lover,"Whisper close your lips on mine / slow rhythm sweet divine / candle flicker on your skin / pull me closer pull me in",,romantic,0.84,0.30
+14,Riot Code,"Smash the silence break the rules / anger sharp like razor tools / streets are burning hear the call / we were born to stand tall",,aggressive,0.15,0.90
+15,Floating Cloud,"Drift above the noise below / gentle waves a soft hello / mind at ease no need to chase / finding peace in open space",,chill,0.65,0.18
+16,Rise Again,"Fall down seven stand up eight / hope is knocking on the gate / storm is passing sun will break / every step is mine to take",,uplifting,0.80,0.68
+17,Ghost Town,"Hollow streets and broken signs / lost between the border lines / fear is crawling up my spine / nowhere left to draw the line",,dark,0.14,0.52
+18,Dance All Night,"Spin me round the speakers hum / bass and bodies become one / glitter falling feel the heat / moving to the disco beat",,energetic,0.76,0.88
+19,Bitter Goodbye,"Pack your bags the door is shut / ashes where we used to cut / silence louder than your lies / rain is falling from my eyes",,melancholic,0.16,0.32
+20,Golden Day,"Birds are singing skies are clear / every worry disappears / clap your hands and stamp your feet / life is sweet life is sweet",,happy,0.92,0.70
+21,Velvet Touch,"Your perfume lingers on my shirt / slow jazz playing low flirt / fingertips and candle wine / say you're forever mine",,romantic,0.82,0.28
+22,War Drum,"Marching boots and battle cries / smoke is rising in the skies / fists are clenched the war begins / no forgiveness for our sins",,aggressive,0.18,0.86
+23,Still Waters,"Lake is mirror calm and deep / watch the ripples gently creep / breathe in hold and breathe again / peace is where I've always been",,chill,0.60,0.15
+24,Horizon Call,"Spread your wings the dawn is near / leave behind the doubt and fear / climb the mountain touch the sun / race is over you have won",,uplifting,0.85,0.75
+25,Underworld,"Demons dancing in my head / every dream is painted red / crawl through tunnels made of stone / in the dark I walk alone",,dark,0.10,0.62
+26,Confetti Sky,"Pop the cork the crowd goes wild / we're forever like a child / fireworks and champagne rain / forget the hurt forget the pain",,happy,0.87,0.80
+27,Pulse,"Heartbeat syncs with strobe and synth / lose control don't even blink / sweat is dripping tempo high / touch the ceiling touch the sky",,energetic,0.70,0.93
+28,Fading Photograph,"Old songs on the radio / places that we used to go / winter cold and empty bed / words I never should have said",,melancholic,0.22,0.22
+29,Moonlit Waltz,"Two steps slow across the floor / I don't need to ask for more / eyes that hold a quiet fire / drawn to you my one desire",,romantic,0.80,0.32
+30,Static Rage,"System broken feed the noise / burn it down destroy the toys / scream until your throat is raw / this is the final law",,aggressive,0.12,0.91

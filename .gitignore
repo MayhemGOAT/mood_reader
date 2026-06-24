@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.env
+
+# ML artifacts
+models/*.joblib
+models/training_features.csv
+!models/.gitkeep
+
+# Data caches
+data/fetched_songs.csv
+data/previews/
+data/**/*.mp3
+data/**/*.wav
+data/**/*.flac
+
+# OS / IDE
+.DS_Store
+.idea/
+.vscode/
