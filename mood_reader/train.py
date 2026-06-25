@@ -170,6 +170,7 @@ def train_from_dataframe(feat_df: pd.DataFrame, model_dir: str | Path) -> dict:
 def train(csv_path: str | Path, model_dir: str | Path | None = None) -> dict:
     cfg = load_config()
     model_dir = Path(model_dir or cfg["paths"]["model_dir"])
+    model_dir.mkdir(parents=True, exist_ok=True)
     df = load_dataset(csv_path)
     feat_df = build_feature_matrix(df)
     feat_df.to_csv(model_dir / "training_features.csv", index=False)
