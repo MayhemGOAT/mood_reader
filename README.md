@@ -24,6 +24,18 @@ cp .env.example .env   # add your API keys
 | **Genius** (lyrics) | `GENIUS_ACCESS_TOKEN` | [genius.com/api-clients](https://genius.com/api-clients) |
 | **Spotify** (valence, energy, tempo, preview) | `SPOTIFY_CLIENT_ID`, `SPOTIFY_CLIENT_SECRET` | [developer.spotify.com](https://developer.spotify.com/dashboard) |
 | **Last.fm** (mood tags, optional) | `LASTFM_API_KEY` | [last.fm/api](https://www.last.fm/api/account/create) |
+| **Kaggle** (valence/energy without Spotify API) | `KAGGLE_API_TOKEN` | [kaggle.com/settings](https://www.kaggle.com/settings) → API → Generate New Token |
+
+### Merge lyrics with Kaggle Spotify features (recommended if Spotify API is rate-limited)
+
+```bash
+# Add KAGGLE_API_TOKEN to .env
+python main.py merge-kaggle \
+  --input data/discovered_songs.csv \
+  --output data/discovered_songs_clean.csv
+
+MOOD_READER_FAST=1 python main.py train --data data/discovered_songs_clean.csv
+```
 
 ### Fetch songs from APIs
 
@@ -87,6 +99,7 @@ If no audio file is provided, audio features are zero-filled at train time; add 
 | `GENIUS_ACCESS_TOKEN` | Required for lyrics fetch |
 | `SPOTIFY_CLIENT_ID` / `SPOTIFY_CLIENT_SECRET` | Spotify audio features + 30s previews |
 | `LASTFM_API_KEY` | Optional mood/genre tags |
+| `KAGGLE_API_TOKEN` | Download Kaggle Spotify features dataset |
 | `MOOD_READER_FAST=1` | Skip HuggingFace emotion model; use lightweight rule-based lyrics scoring |
 
 ## Project layout

@@ -38,3 +38,6 @@ apis:
     enabled: true
   lastfm:
     enabled: true
+  kaggle:
+    enabled: true
+    dataset: joebeachcapital/30000-spotify-songs

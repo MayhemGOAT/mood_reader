@@ -12,7 +12,7 @@ models/training_features.csv
 
 # Data caches
 data/fetched_songs.csv
-data/previews/
+data/kaggle/
 data/**/*.mp3
 data/**/*.wav
 data/**/*.flac

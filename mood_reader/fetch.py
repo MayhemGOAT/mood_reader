@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-import re
+import json
 from pathlib import Path
 
 import pandas as pd
@@ -41,30 +41,27 @@ def load_track_list(path: str | Path) -> list[tuple[str, str]]:
     return tracks
 
 
-def fetch_songs(
-    tracks: list[tuple[str, str]],
-    *,
-    download_previews: bool = False,
-    preview_dir: str | Path | None = None,
-) -> list[dict]:
-    cfg = load_config()
-    preview_dir = Path(preview_dir or cfg["paths"]["data_dir"]) / "previews"
-    rows = []
+def _track_key(artist: str, title: str) -> tuple[str, str]:
+    return artist.strip().lower(), title.strip().lower()
 
-    for artist, title in tqdm(tracks, desc="Fetching songs"):
-        info = lookup_song(title, artist)
-        row = info.to_dataset_row()
 
-        if download_previews and info.preview_url:
-            preview = download_preview(info, preview_dir)
-            if preview:
-                row["audio_path"] = str(preview)
+def load_existing_keys(output_path: str | Path) -> set[tuple[str, str]]:
+    output_path = Path(output_path)
+    if not output_path.exists():
+        return set()
 
-        row["fetch_errors"] = "; ".join(info.errors)
-        row["sources"] = "|".join(info.sources)
-        rows.append(row)
+    df = pd.read_csv(output_path)
+    if "artist" not in df.columns or "title" not in df.columns:
+        return set()
 
-    return rows
+    keys: set[tuple[str, str]] = set()
+    for _, row in df.iterrows():
+        artist = row.get("artist")
+        title = row.get("title")
+        if pd.isna(artist) or pd.isna(title):
+            continue
+        keys.add(_track_key(str(artist), str(title)))
+    return keys
 
 
 def save_dataset(rows: list[dict], output_path: str | Path, *, append: bool = False) -> Path:
@@ -83,12 +80,94 @@ def save_dataset(rows: list[dict], output_path: str | Path, *, append: bool = Fa
     return output_path
 
 
+def fetch_songs(
+    tracks: list[tuple[str, str]],
+    *,
+    download_previews: bool = False,
+    preview_dir: str | Path | None = None,
+    output_path: str | Path | None = None,
+    resume: bool = True,
+    save_every: int = 10,
+) -> list[dict]:
+    cfg = load_config()
+    preview_dir = Path(preview_dir or cfg["paths"]["data_dir"]) / "previews"
+    output_path = Path(output_path) if output_path else None
+
+    existing_keys: set[tuple[str, str]] = set()
+    if resume and output_path is not None:
+        existing_keys = load_existing_keys(output_path)
+
+    pending = [
+        (artist, title)
+        for artist, title in tracks
+        if _track_key(artist, title) not in existing_keys
+    ]
+
+    rows: list[dict] = []
+    fetched = 0
+
+    for artist, title in tqdm(pending, desc="Fetching songs"):
+        info = lookup_song(title, artist)
+        row = info.to_dataset_row()
+
+        if download_previews and info.preview_url:
+            preview = download_preview(info, preview_dir)
+            if preview:
+                row["audio_path"] = str(preview)
+
+        row["fetch_errors"] = "; ".join(info.errors)
+        row["sources"] = "|".join(info.sources)
+        rows.append(row)
+        fetched += 1
+
+        if output_path is not None and fetched % save_every == 0:
+            save_dataset(rows, output_path, append=True)
+            rows = []
+
+    if output_path is not None and rows:
+        save_dataset(rows, output_path, append=True)
+
+    return rows
+
+
 def fetch_tracks_to_csv(
     tracks: list[tuple[str, str]],
     output_path: str | Path,
     *,
     append: bool = False,
     download_previews: bool = False,
-) -> Path:
-    rows = fetch_songs(tracks, download_previews=download_previews)
-    return save_dataset(rows, output_path, append=append)
+    resume: bool = True,
+    save_every: int = 10,
+) -> dict:
+    output_path = Path(output_path)
+    resume = resume or append
+
+    if not resume and output_path.exists():
+        output_path.unlink()
+
+    existing_keys = load_existing_keys(output_path) if resume and output_path.exists() else set()
+    pending = [t for t in tracks if _track_key(t[0], t[1]) not in existing_keys]
+    skipped = len(tracks) - len(pending)
+
+    if pending:
+        fetch_songs(
+            tracks,
+            download_previews=download_previews,
+            output_path=output_path,
+            resume=resume,
+            save_every=save_every,
+        )
+
+    total_saved = len(load_existing_keys(output_path)) if output_path.exists() else 0
+
+    summary = {
+        "saved": str(output_path),
+        "tracks_in_list": len(tracks),
+        "fetched_this_run": len(pending),
+        "skipped_existing": skipped,
+        "total_in_csv": total_saved,
+    }
+
+    summary_path = output_path.with_suffix(".summary.json")
+    summary_path.write_text(json.dumps(summary, indent=2), encoding="utf-8")
+    return summary
