@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import sys
 from pathlib import Path
 
 import joblib
@@ -38,17 +39,30 @@ def load_dataset(csv_path: str | Path) -> pd.DataFrame:
 
 def build_feature_matrix(df: pd.DataFrame) -> pd.DataFrame:
     rows = []
+    skipped = 0
     for _, row in tqdm(df.iterrows(), total=len(df), desc="Extracting features"):
+        lyrics = row.get("lyrics")
+        if pd.isna(lyrics) or not str(lyrics).strip():
+            skipped += 1
+            continue
+
         audio_path = row.get("audio_path")
         if pd.isna(audio_path) or not str(audio_path).strip():
             audio_path = None
         elif not Path(str(audio_path)).exists():
             audio_path = None
 
-        features = extract_song_features(
-            lyrics=str(row["lyrics"]),
-            audio_path=audio_path,
-        )
+        try:
+            features = extract_song_features(
+                lyrics=str(lyrics),
+                audio_path=audio_path,
+            )
+        except ValueError:
+            # Lyrics that reduce to nothing after cleaning (e.g. only section
+            # headers like "[Verse]") are not usable training samples.
+            skipped += 1
+            continue
+
         features["track_id"] = row.get("track_id", "")
         features["title"] = row.get("title", "")
         if "vibe" in row and pd.notna(row["vibe"]):
@@ -59,6 +73,11 @@ def build_feature_matrix(df: pd.DataFrame) -> pd.DataFrame:
             features["energy"] = float(row["energy"])
         rows.append(features)
 
+    if skipped:
+        print(
+            f"Skipped {skipped} row(s) with empty/unusable lyrics",
+            file=sys.stderr,
+        )
     return pd.DataFrame(rows)
 
 
@@ -99,8 +118,11 @@ def train_from_dataframe(feat_df: pd.DataFrame, model_dir: str | Path) -> dict:
 
     # --- valence regressor ---
     if "valence" in feat_df.columns and feat_df["valence"].notna().sum() >= 10:
-        y_val = feat_df["valence"].astype(float)
-        X_tr, X_te, y_tr, y_te = train_test_split(X, y_val, test_size=0.2, random_state=42)
+        val_mask = feat_df["valence"].notna()
+        y_val = feat_df.loc[val_mask, "valence"].astype(float)
+        X_tr, X_te, y_tr, y_te = train_test_split(
+            X.loc[val_mask], y_val, test_size=0.2, random_state=42
+        )
         val_model = _make_regressor(model_cfg)
         val_model.fit(X_tr, y_tr)
         preds = val_model.predict(X_te)
@@ -112,8 +134,11 @@ def train_from_dataframe(feat_df: pd.DataFrame, model_dir: str | Path) -> dict:
 
     # --- energy regressor ---
     if "energy" in feat_df.columns and feat_df["energy"].notna().sum() >= 10:
-        y_eng = feat_df["energy"].astype(float)
-        X_tr, X_te, y_tr, y_te = train_test_split(X, y_eng, test_size=0.2, random_state=42)
+        eng_mask = feat_df["energy"].notna()
+        y_eng = feat_df.loc[eng_mask, "energy"].astype(float)
+        X_tr, X_te, y_tr, y_te = train_test_split(
+            X.loc[eng_mask], y_eng, test_size=0.2, random_state=42
+        )
         eng_model = _make_regressor(model_cfg)
         eng_model.fit(X_tr, y_tr)
         preds = eng_model.predict(X_te)
@@ -126,9 +151,16 @@ def train_from_dataframe(feat_df: pd.DataFrame, model_dir: str | Path) -> dict:
     # --- vibe classifier ---
     vibe_col = feat_df["vibe"] if "vibe" in feat_df.columns else None
     if vibe_col is None or vibe_col.notna().sum() < 10:
-        if val_model and eng_model:
+        if (
+            val_model is not None
+            and eng_model is not None
+            and "valence" in feat_df.columns
+            and "energy" in feat_df.columns
+        ):
             inferred = [
                 vibe_from_valence_energy(v, e)
+                if pd.notna(v) and pd.notna(e)
+                else float("nan")
                 for v, e in zip(feat_df["valence"], feat_df["energy"])
             ]
             feat_df = feat_df.copy()
@@ -136,14 +168,16 @@ def train_from_dataframe(feat_df: pd.DataFrame, model_dir: str | Path) -> dict:
             vibe_col = feat_df["vibe"]
 
     if vibe_col is not None and vibe_col.notna().sum() >= 10:
-        y_vibe = vibe_col.astype(str)
+        vibe_mask = vibe_col.notna()
+        y_vibe = vibe_col[vibe_mask].astype(str)
+        X_vibe = X.loc[vibe_mask]
         split_kwargs = {"test_size": 0.2, "random_state": 42}
         class_counts = y_vibe.value_counts()
         min_class_count = int(class_counts.min())
         test_count = max(int(round(len(y_vibe) * split_kwargs["test_size"])), 1)
         if min_class_count >= 2 and test_count >= len(class_counts):
             split_kwargs["stratify"] = y_vibe
-        X_tr, X_te, y_tr, y_te = train_test_split(X, y_vibe, **split_kwargs)
+        X_tr, X_te, y_tr, y_te = train_test_split(X_vibe, y_vibe, **split_kwargs)
         vibe_model = _make_classifier(model_cfg)
         vibe_model.fit(X_tr, y_tr)
         preds = vibe_model.predict(X_te)
