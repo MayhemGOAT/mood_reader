@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import librosa
 import numpy as np
 
 from mood_reader.config import load_config
@@ -17,6 +16,10 @@ def extract_audio_features(
     duration_seconds: float | None = None,
     n_mfcc: int | None = None,
 ) -> dict[str, float]:
+    # Imported lazily so the lyrics-only pipeline (train/predict without audio)
+    # does not require librosa and its heavy native dependencies.
+    import librosa
+
     cfg = load_config()["audio"]
     sr = sample_rate or cfg["sample_rate"]
     duration = duration_seconds or cfg["duration_seconds"]
