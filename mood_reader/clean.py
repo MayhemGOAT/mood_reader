@@ -175,6 +175,7 @@ def clean_dataset(
 ) -> dict:
     input_path = Path(input_path)
     output_path = Path(output_path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
 
     df = pd.read_csv(input_path)
     lyrics_ok = df.apply(lambda r: has_usable_lyrics(r.get("lyrics")), axis=1).sum()
