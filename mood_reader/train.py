@@ -98,53 +98,69 @@ def train_from_dataframe(feat_df: pd.DataFrame, model_dir: str | Path) -> dict:
 
     report: dict = {"samples": len(feat_df), "feature_count": len(feature_cols)}
 
+    # Coerce labels to numeric up front so partially-labeled datasets (e.g.
+    # merge-kaggle --keep-unmatched) don't push NaN/blank values into model.fit.
+    valence_num = (
+        pd.to_numeric(feat_df["valence"], errors="coerce")
+        if "valence" in feat_df.columns
+        else None
+    )
+    energy_num = (
+        pd.to_numeric(feat_df["energy"], errors="coerce")
+        if "energy" in feat_df.columns
+        else None
+    )
+
+    def _fit_regressor(target: str, y_num: pd.Series | None) -> Pipeline | None:
+        if y_num is None or y_num.notna().sum() < 10:
+            report[f"{target}_mae"] = None
+            return None
+        mask = y_num.notna()
+        X_lab = X.loc[mask]
+        y_lab = y_num.loc[mask].astype(float)
+        X_tr, X_te, y_tr, y_te = train_test_split(X_lab, y_lab, test_size=0.2, random_state=42)
+        model = _make_regressor(model_cfg)
+        model.fit(X_tr, y_tr)
+        preds = model.predict(X_te)
+        report[f"{target}_mae"] = float(mean_absolute_error(y_te, preds))
+        joblib.dump(model, model_dir / f"{target}_model.joblib")
+        return model
+
     # --- valence regressor ---
-    if "valence" in feat_df.columns and feat_df["valence"].notna().sum() >= 10:
-        y_val = feat_df["valence"].astype(float)
-        X_tr, X_te, y_tr, y_te = train_test_split(X, y_val, test_size=0.2, random_state=42)
-        val_model = _make_regressor(model_cfg)
-        val_model.fit(X_tr, y_tr)
-        preds = val_model.predict(X_te)
-        report["valence_mae"] = float(mean_absolute_error(y_te, preds))
-        joblib.dump(val_model, model_dir / "valence_model.joblib")
-    else:
-        val_model = None
-        report["valence_mae"] = None
+    val_model = _fit_regressor("valence", valence_num)
 
     # --- energy regressor ---
-    if "energy" in feat_df.columns and feat_df["energy"].notna().sum() >= 10:
-        y_eng = feat_df["energy"].astype(float)
-        X_tr, X_te, y_tr, y_te = train_test_split(X, y_eng, test_size=0.2, random_state=42)
-        eng_model = _make_regressor(model_cfg)
-        eng_model.fit(X_tr, y_tr)
-        preds = eng_model.predict(X_te)
-        report["energy_mae"] = float(mean_absolute_error(y_te, preds))
-        joblib.dump(eng_model, model_dir / "energy_model.joblib")
-    else:
-        eng_model = None
-        report["energy_mae"] = None
+    eng_model = _fit_regressor("energy", energy_num)
 
     # --- vibe classifier ---
-    vibe_col = feat_df["vibe"] if "vibe" in feat_df.columns else None
-    if vibe_col is None or vibe_col.notna().sum() < 10:
-        if val_model and eng_model:
-            inferred = [
-                vibe_from_valence_energy(v, e)
-                for v, e in zip(feat_df["valence"], feat_df["energy"])
-            ]
-            feat_df = feat_df.copy()
-            feat_df["vibe"] = inferred
-            vibe_col = feat_df["vibe"]
+    def _valid_vibe_mask(series: pd.Series) -> pd.Series:
+        stripped = series.astype(str).str.strip()
+        return series.notna() & (stripped != "") & (stripped.str.lower() != "nan")
 
-    if vibe_col is not None and vibe_col.notna().sum() >= 10:
-        y_vibe = vibe_col.astype(str)
+    vibe_col = feat_df["vibe"] if "vibe" in feat_df.columns else None
+    vibe_mask = _valid_vibe_mask(vibe_col) if vibe_col is not None else None
+
+    if vibe_mask is None or vibe_mask.sum() < 10:
+        if val_model is not None and eng_model is not None:
+            inferred = [
+                vibe_from_valence_energy(v, e) if pd.notna(v) and pd.notna(e) else float("nan")
+                for v, e in zip(valence_num, energy_num)
+            ]
+            vibe_col = pd.Series(inferred, index=feat_df.index)
+            vibe_mask = _valid_vibe_mask(vibe_col)
+
+    report["vibe_accuracy"] = None
+    y_vibe = vibe_col.loc[vibe_mask].astype(str) if vibe_mask is not None else None
+    # A classifier needs at least two distinct labels to train.
+    if y_vibe is not None and len(y_vibe) >= 10 and y_vibe.nunique() >= 2:
+        X_vibe = X.loc[vibe_mask]
         split_kwargs = {"test_size": 0.2, "random_state": 42}
         class_counts = y_vibe.value_counts()
         min_class_count = int(class_counts.min())
         test_count = max(int(round(len(y_vibe) * split_kwargs["test_size"])), 1)
         if min_class_count >= 2 and test_count >= len(class_counts):
             split_kwargs["stratify"] = y_vibe
-        X_tr, X_te, y_tr, y_te = train_test_split(X, y_vibe, **split_kwargs)
+        X_tr, X_te, y_tr, y_te = train_test_split(X_vibe, y_vibe, **split_kwargs)
         vibe_model = _make_classifier(model_cfg)
         vibe_model.fit(X_tr, y_tr)
         preds = vibe_model.predict(X_te)
@@ -154,8 +170,6 @@ def train_from_dataframe(feat_df: pd.DataFrame, model_dir: str | Path) -> dict:
         vibe_classes = [str(c) for c in sorted(y_vibe.unique())]
         with open(model_dir / "vibe_classes.json", "w") as f:
             json.dump(vibe_classes, f, indent=2)
-    else:
-        report["vibe_accuracy"] = None
 
     meta = {
         "feature_columns": feature_cols,
