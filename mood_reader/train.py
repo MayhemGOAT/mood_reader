@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import sys
 from pathlib import Path
 
 import joblib
@@ -39,17 +40,29 @@ def load_dataset(csv_path: str | Path) -> pd.DataFrame:
 
 def build_feature_matrix(df: pd.DataFrame) -> pd.DataFrame:
     rows = []
+    skipped = 0
     for _, row in tqdm(df.iterrows(), total=len(df), desc="Extracting features"):
+        lyrics = row.get("lyrics")
+        if pd.isna(lyrics) or not str(lyrics).strip():
+            skipped += 1
+            continue
+
         audio_path = row.get("audio_path")
         if pd.isna(audio_path) or not str(audio_path).strip():
             audio_path = None
         elif not Path(str(audio_path)).exists():
             audio_path = None
 
-        features = extract_song_features(
-            lyrics=str(row["lyrics"]),
-            audio_path=audio_path,
-        )
+        try:
+            features = extract_song_features(
+                lyrics=str(lyrics),
+                audio_path=audio_path,
+            )
+        except ValueError:
+            # Lyrics that clean down to nothing (e.g. only section headers).
+            skipped += 1
+            continue
+
         features["track_id"] = row.get("track_id", "")
         features["title"] = row.get("title", "")
         if "vibe" in row and pd.notna(row["vibe"]):
@@ -59,6 +72,9 @@ def build_feature_matrix(df: pd.DataFrame) -> pd.DataFrame:
         if "energy" in row and pd.notna(row["energy"]):
             features["energy"] = float(row["energy"])
         rows.append(features)
+
+    if skipped:
+        print(f"Skipped {skipped} row(s) with empty or unusable lyrics", file=sys.stderr)
 
     return pd.DataFrame(rows)
 
