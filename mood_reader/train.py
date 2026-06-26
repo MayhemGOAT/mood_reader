@@ -151,7 +151,9 @@ def train_from_dataframe(feat_df: pd.DataFrame, model_dir: str | Path) -> dict:
         report["vibe_accuracy"] = float(accuracy_score(y_te, preds))
         report["vibe_report"] = classification_report(y_te, preds, zero_division=0)
         joblib.dump(vibe_model, model_dir / "vibe_model.joblib")
-        joblib.dump(sorted(y_vibe.unique()), model_dir / "vibe_classes.json")
+        vibe_classes = [str(c) for c in sorted(y_vibe.unique())]
+        with open(model_dir / "vibe_classes.json", "w") as f:
+            json.dump(vibe_classes, f, indent=2)
     else:
         report["vibe_accuracy"] = None
 
