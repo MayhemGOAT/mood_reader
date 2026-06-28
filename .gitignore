@@ -4,18 +4,32 @@ __pycache__/
 .venv/
 venv/
 .env
+.matplotlib_cache/
 
 # ML artifacts
 models/*.joblib
+models/**/*.joblib
 models/training_features.csv
+models/**/training_features.csv
+models/**/*.log
 !models/.gitkeep
 
 # Data caches
 data/fetched_songs.csv
 data/kaggle/
+data/kaggle_kernels/
 data/**/*.mp3
 data/**/*.wav
 data/**/*.flac
+data/*.log
+data/checkpoint_test.csv
+data/checkpoint_test.summary.json
+data/discovered_songs.csv
+data/discovered_songs_clean.csv
+data/song_popularity_to_fetch.csv
+data/test_songs.csv
+data/test_lyrics_input.txt
+data/test_rap_devil.txt
 
 # OS / IDE
 .DS_Store

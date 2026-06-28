@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import json
+import time
 from pathlib import Path
 
 import pandas as pd
 from tqdm import tqdm
 
+from mood_reader.apis.genius import fetch_genius_lyrics
 from mood_reader.apis.song_lookup import download_preview, lookup_song
 from mood_reader.config import load_config
 
@@ -171,3 +173,51 @@ def fetch_tracks_to_csv(
     summary_path = output_path.with_suffix(".summary.json")
     summary_path.write_text(json.dumps(summary, indent=2), encoding="utf-8")
     return summary
+
+
+def fetch_lyrics_for_csv(
+    csv_path: str | Path,
+    *,
+    delay_seconds: float = 1.0,
+    save_every: int = 5,
+) -> dict:
+    """Backfill Genius lyrics for rows in CSV that are missing usable lyrics."""
+    from mood_reader.clean import has_usable_lyrics
+
+    csv_path = Path(csv_path)
+    rows = pd.read_csv(csv_path).to_dict(orient="records")
+    fetched = 0
+    skipped = 0
+
+    for i, row in enumerate(tqdm(rows, desc="Fetching Genius lyrics")):
+        if has_usable_lyrics(row.get("lyrics")):
+            skipped += 1
+            continue
+
+        artist = str(row.get("artist") or "").strip()
+        title = str(row.get("title") or "").strip()
+        if not artist or not title or artist.lower() == "nan" or title.lower() == "nan":
+            skipped += 1
+            continue
+
+        info = fetch_genius_lyrics(title, artist)
+        if info.lyrics:
+            row["lyrics"] = info.lyrics
+            row["genius_url"] = info.genius_url or row.get("genius_url", "")
+            sources = str(row.get("sources") or "")
+            if "genius" not in sources:
+                row["sources"] = "genius" if not sources else f"{sources}|genius"
+            fetched += 1
+
+        rows[i] = row
+        if fetched and fetched % save_every == 0:
+            save_dataset(rows, csv_path, append=False)
+        time.sleep(delay_seconds)
+
+    save_dataset(rows, csv_path, append=False)
+    return {
+        "csv": str(csv_path),
+        "fetched": fetched,
+        "skipped": skipped,
+        "total_rows": len(rows),
+    }

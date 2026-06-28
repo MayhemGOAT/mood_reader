@@ -17,6 +17,20 @@ def main() -> None:
     train_p.add_argument("--data", required=True, help="Path to songs.csv")
     train_p.add_argument("--model-dir", default=None, help="Output directory for models")
 
+    eval_p = sub.add_parser("train-eval", help="Train/test split on labeled songs; measure lyrics→music mood accuracy")
+    eval_p.add_argument("--data", default="data/discovered_songs_clean.csv", help="Labeled CSV (lyrics + valence + energy + vibe)")
+    eval_p.add_argument("--train-size", type=int, default=100, help="Number of training songs")
+    eval_p.add_argument("--test-size", type=int, default=None, help="Number of test songs (default: rest of dataset)")
+    eval_p.add_argument("--model-dir", default=None, help="Model output directory")
+    eval_p.add_argument("--charts-dir", default=None, help="Chart output directory")
+    eval_p.add_argument("--seed", type=int, default=42, help="Random split seed")
+    eval_p.add_argument(
+        "--with-spotify",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Fuse lyrics with Spotify audio features (valence, tempo, etc.) during training",
+    )
+
     fetch_p = sub.add_parser("fetch", help="Fetch lyrics + song info from APIs into a CSV")
     fetch_p.add_argument("--artist", action="append", default=[], help="Artist name (repeatable)")
     fetch_p.add_argument("--title", action="append", default=[], help="Title (repeatable, pairs with --artist)")
@@ -26,6 +40,11 @@ def main() -> None:
     fetch_p.add_argument("--no-resume", action="store_true", help="Re-fetch all tracks; overwrite existing CSV entries")
     fetch_p.add_argument("--save-every", type=int, default=10, help="Checkpoint CSV every N songs (default: 10)")
     fetch_p.add_argument("--download-previews", action="store_true", help="Save Spotify 30s previews for audio features")
+
+    lyrics_p = sub.add_parser("fetch-lyrics", help="Fetch Genius lyrics only for rows missing lyrics in a CSV")
+    lyrics_p.add_argument("--data", default="data/discovered_songs.csv", help="CSV to update")
+    lyrics_p.add_argument("--delay", type=float, default=1.0, help="Seconds between Genius API calls")
+    lyrics_p.add_argument("--save-every", type=int, default=5, help="Checkpoint CSV every N fetches")
 
     disc_p = sub.add_parser("discover", help="Discover diverse tracks on Spotify and fetch Genius lyrics")
     disc_p.add_argument("--count", type=int, default=500, help="Number of songs to save")
@@ -98,6 +117,24 @@ def main() -> None:
         print(json.dumps(report, indent=2))
         return
 
+    if args.command == "train-eval":
+        from mood_reader.evaluate import train_evaluate_labeled_split
+
+        report = train_evaluate_labeled_split(
+            args.data,
+            train_size=args.train_size,
+            test_size=args.test_size,
+            model_dir=args.model_dir,
+            charts_dir=args.charts_dir,
+            random_state=args.seed,
+            include_spotify=args.with_spotify,
+        )
+        print(json.dumps({k: v for k, v in report.items() if k != "vibe_report_test"}, indent=2, default=str))
+        if report.get("vibe_report_test"):
+            print("\n--- Vibe classification report (test) ---")
+            print(report["vibe_report_test"])
+        return
+
     if args.command == "fetch":
         from mood_reader.fetch import fetch_tracks_to_csv, load_track_list
 
@@ -121,6 +158,17 @@ def main() -> None:
             append=args.append,
             download_previews=args.download_previews,
             resume=not args.no_resume,
+            save_every=args.save_every,
+        )
+        print(json.dumps(summary, indent=2))
+        return
+
+    if args.command == "fetch-lyrics":
+        from mood_reader.fetch import fetch_lyrics_for_csv
+
+        summary = fetch_lyrics_for_csv(
+            args.data,
+            delay_seconds=args.delay,
             save_every=args.save_every,
         )
         print(json.dumps(summary, indent=2))

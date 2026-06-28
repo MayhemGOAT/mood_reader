@@ -1,0 +1,14 @@
+              precision    recall  f1-score   support
+
+  aggressive       0.98      0.98      0.98       308
+       chill       0.95      0.96      0.95       119
+        dark       0.97      0.93      0.95       199
+   energetic       0.93      0.97      0.95       421
+       happy       0.94      0.90      0.92       126
+ melancholic       0.95      0.97      0.96       198
+    romantic       0.94      0.88      0.91        91
+   uplifting       0.94      0.91      0.92       324
+
+    accuracy                           0.95      1786
+   macro avg       0.95      0.94      0.94      1786
+weighted avg       0.95      0.95      0.95      1786

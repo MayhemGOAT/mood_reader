@@ -49,15 +49,19 @@ def build_feature_matrix(df: pd.DataFrame) -> pd.DataFrame:
         features = extract_song_features(
             lyrics=str(row["lyrics"]),
             audio_path=audio_path,
+            spotify_row=row,
         )
         features["track_id"] = row.get("track_id", "")
         features["title"] = row.get("title", "")
         if "vibe" in row and pd.notna(row["vibe"]):
             features["vibe"] = row["vibe"]
-        if "valence" in row and pd.notna(row["valence"]):
-            features["valence"] = float(row["valence"])
+        val = row.get("valence", row.get("audio_valence"))
+        if pd.notna(val):
+            features["valence"] = float(val)
         if "energy" in row and pd.notna(row["energy"]):
             features["energy"] = float(row["energy"])
+        if "tempo" in row and pd.notna(row["tempo"]):
+            features["tempo"] = float(row["tempo"])
         rows.append(features)
 
     return pd.DataFrame(rows)

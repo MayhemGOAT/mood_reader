@@ -1,0 +1,11 @@
+{
+  "data_csv": "data/discovered_songs.csv",
+  "tracks_file": "data/songs_with_lyrics.txt",
+  "tracks_requested": 548,
+  "processed": 544,
+  "spotify_matches": 543,
+  "skipped_existing": 0,
+  "not_in_csv": 4,
+  "spotify_before": 0,
+  "spotify_after": 0
+}

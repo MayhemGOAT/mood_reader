@@ -62,10 +62,25 @@ def _emotion_scores(text: str) -> dict[str, float]:
         return _emotion_scores_fast(text)
 
     cfg = load_config()["lyrics"]
-    chunks = _chunk_text(text, cfg["max_length"])
+    max_tokens = cfg["max_length"]
+    tokenizer = pipe.tokenizer
+    token_ids = tokenizer.encode(text, add_special_tokens=False)
+    if not token_ids:
+        return {f"emo_{k}": 0.0 for k in EMOTION_LABELS}
+
+    stride = max(max_tokens - 2, 1)
+    chunks: list[str] = []
+    for start in range(0, len(token_ids), stride):
+        piece = token_ids[start : start + stride]
+        chunks.append(tokenizer.decode(piece, skip_special_tokens=True))
+        if start + stride >= len(token_ids):
+            break
+
     accum = {label: 0.0 for label in EMOTION_LABELS}
     for chunk in chunks:
-        results = pipe(chunk)[0]
+        if not chunk.strip():
+            continue
+        results = pipe(chunk, truncation=True, max_length=max_tokens)[0]
         for item in results:
             label = item["label"].lower()
             if label in accum:

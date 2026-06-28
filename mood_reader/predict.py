@@ -19,12 +19,17 @@ class MoodReader:
         cfg = load_config()
         self.model_dir = Path(model_dir or cfg["paths"]["model_dir"])
         self.feature_columns = feature_column_names()
+        self.feature_columns_by_target: dict[str, list[str]] = {}
 
         meta_path = self.model_dir / "metadata.json"
         if meta_path.exists():
             with open(meta_path) as f:
                 meta = json.load(f)
-            self.feature_columns = meta.get("feature_columns", self.feature_columns)
+            fc = meta.get("feature_columns")
+            if isinstance(fc, dict):
+                self.feature_columns_by_target = fc
+            elif isinstance(fc, list):
+                self.feature_columns = fc
 
         self.valence_model = self._load("valence_model.joblib")
         self.energy_model = self._load("energy_model.joblib")
@@ -36,37 +41,52 @@ class MoodReader:
             return joblib.load(path)
         return None
 
-    def _vectorize(self, features: dict[str, float]) -> pd.DataFrame:
-        row = {c: features.get(c, 0.0) for c in self.feature_columns}
-        return pd.DataFrame([row], columns=self.feature_columns)
+    def _vectorize(self, features: dict[str, float], columns: list[str] | None = None) -> pd.DataFrame:
+        cols = columns or self.feature_columns
+        row = {c: features.get(c, 0.0) for c in cols}
+        return pd.DataFrame([row], columns=cols)
 
     def predict(
         self,
         *,
         lyrics: str,
         audio_path: str | Path | None = None,
+        spotify: dict | None = None,
     ) -> dict:
-        features = extract_song_features(lyrics=lyrics, audio_path=audio_path)
-        X = self._vectorize(features)
+        features = extract_song_features(
+            lyrics=lyrics,
+            audio_path=audio_path,
+            spotify_row=spotify,
+        )
+        val_cols = self.feature_columns_by_target.get("valence", self.feature_columns)
+        eng_cols = self.feature_columns_by_target.get("energy", self.feature_columns)
+        vibe_cols = self.feature_columns_by_target.get("vibe", self.feature_columns)
 
-        result: dict = {"features_used": len(self.feature_columns)}
+        X_val = self._vectorize(features, val_cols)
+        X_eng = self._vectorize(features, eng_cols)
+        X_vibe = self._vectorize(features, vibe_cols)
+
+        result: dict = {
+            "features_used": len(set(val_cols) | set(eng_cols) | set(vibe_cols)),
+            "spotify_features_used": spotify is not None,
+        }
 
         if self.valence_model is not None:
-            valence = float(np.clip(self.valence_model.predict(X)[0], 0, 1))
+            valence = float(np.clip(self.valence_model.predict(X_val)[0], 0, 1))
         else:
             valence = float(np.clip(features.get("vader_compound", 0) * 0.5 + 0.5, 0, 1))
 
         if self.energy_model is not None:
-            energy = float(np.clip(self.energy_model.predict(X)[0], 0, 1))
+            energy = float(np.clip(self.energy_model.predict(X_eng)[0], 0, 1))
         else:
             tempo = features.get("tempo_bpm", 0)
             rms = features.get("rms_mean", 0)
             energy = float(np.clip(0.4 * (tempo / 180.0) + 0.6 * min(rms * 10, 1.0), 0, 1))
 
         if self.vibe_model is not None:
-            vibe = str(self.vibe_model.predict(X)[0])
+            vibe = str(self.vibe_model.predict(X_vibe)[0])
             if hasattr(self.vibe_model, "predict_proba"):
-                probs = self.vibe_model.predict_proba(X)[0]
+                probs = self.vibe_model.predict_proba(X_vibe)[0]
                 classes = list(self.vibe_model.named_steps["model"].classes_)
                 vibe_scores = {c: float(p) for c, p in zip(classes, probs)}
             else:
@@ -91,5 +111,6 @@ def predict_song(
     lyrics: str,
     audio_path: str | Path | None = None,
     model_dir: str | Path | None = None,
+    spotify: dict | None = None,
 ) -> dict:
-    return MoodReader(model_dir).predict(lyrics=lyrics, audio_path=audio_path)
+    return MoodReader(model_dir).predict(lyrics=lyrics, audio_path=audio_path, spotify=spotify)

@@ -1,0 +1,15 @@
+{
+  "train_songs": 2788,
+  "test_songs": 1859,
+  "valence_mae_test": 0.21033485035485888,
+  "valence_r2_test": -0.08788796638233154,
+  "energy_mae_test": 0.18710963673064798,
+  "energy_r2_test": -0.050180024912437116,
+  "vibe_accuracy_test": 0.20118343195266272,
+  "model_config_used": {
+    "n_estimators": 300,
+    "max_depth": 8,
+    "learning_rate": 0.05,
+    "random_state": 42
+  }
+}

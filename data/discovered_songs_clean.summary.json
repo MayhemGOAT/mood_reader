@@ -1,0 +1,10 @@
+{
+  "input": "data/discovered_songs.csv",
+  "output": "data/discovered_songs_clean.csv",
+  "kaggle_csv": "/Users/adi/mood_reader-1/data/kaggle/datasets/joebeachcapital/30000-spotify-songs/versions/2/spotify_songs.csv",
+  "kaggle_unique_tracks": 26035,
+  "input_rows": 569,
+  "output_rows": 187,
+  "matched_with_features": 187,
+  "clean_only": true
+}
