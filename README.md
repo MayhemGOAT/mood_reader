@@ -1,11 +1,60 @@
 # Mood Reader
 
+<p align="center">
+  <strong>Classify song mood from lyrics and audio — no Spotify API required at inference time.</strong>
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/python-3.10%2B-blue?logo=python&logoColor=white" alt="Python 3.10+" />
+  <img src="https://img.shields.io/badge/pytorch-2.0%2B-ee4c2c?logo=pytorch&logoColor=white" alt="PyTorch" />
+  <img src="https://img.shields.io/badge/sklearn-gradient%20boosting-f7931e?logo=scikitlearn&logoColor=white" alt="scikit-learn" />
+  <img src="https://img.shields.io/badge/librosa-audio%20features-9cf" alt="librosa" />
+</p>
+
+---
+
 Multimodal ML system that classifies **song mood, energy, and vibe** by fusing:
 
 - **Lyrics** — emotion classification (DistilRoBERTa), VADER sentiment, theme keywords
 - **Audio** — tempo, RMS energy, MFCCs, spectral shape, chroma (via librosa)
 
 Outputs continuous **valence** (positive ↔ negative) and **energy** (calm ↔ intense), plus a discrete **vibe** label (`chill`, `happy`, `energetic`, `melancholic`, `aggressive`, `romantic`, `uplifting`, `dark`).
+
+## Features
+
+| | |
+|---|---|
+| **Multimodal fusion** | Lyrics NLP + librosa audio features → gradient boosting regressors/classifiers |
+| **API-powered datasets** | Pull lyrics (Genius), Spotify features, and Last.fm tags into training CSVs |
+| **Kaggle fallback** | Merge 30k Spotify tracks when API rate limits bite |
+| **Fast mode** | `MOOD_READER_FAST=1` skips the HuggingFace emotion model for quick iteration |
+| **Evaluation suite** | Train/test splits, circumplex charts, vibe confusion matrices under `models/` |
+
+## Vibe taxonomy
+
+Moods map to Russell's **circumplex model** (valence × energy):
+
+| Vibe | Valence | Energy | Feel |
+|------|---------|--------|------|
+| `happy` | high | high | upbeat, joyful |
+| `energetic` | mid–high | high | driving, intense |
+| `uplifting` | high | mid | hopeful, anthemic |
+| `chill` | mid | low | relaxed, laid-back |
+| `romantic` | high | low–mid | tender, intimate |
+| `melancholic` | low | low–mid | sad, reflective |
+| `dark` | low | mid | brooding, ominous |
+| `aggressive` | low | high | angry, heavy |
+
+```mermaid
+quadrantChart
+    title Mood circumplex (valence × energy)
+    x-axis Low valence --> High valence
+    y-axis Low energy --> High energy
+    quadrant-1 uplifting
+    quadrant-2 happy
+    quadrant-3 melancholic
+    quadrant-4 aggressive
+```
 
 ## Quick start
 
@@ -60,6 +109,39 @@ python main.py predict --artist "Billie Eilish" --title "bad guy" --use-preview
 MOOD_READER_FAST=1 python main.py predict \
   --lyrics "Bass hits like thunder, we never rest, dance until the dawn"
 ```
+
+### Example output
+
+```json
+{
+  "features_used": 47,
+  "spotify_features_used": true,
+  "valence": 0.721,
+  "energy": 0.814,
+  "valence_label": "positive",
+  "energy_label": "high",
+  "vibe": "energetic",
+  "vibe_scores": {
+    "energetic": 0.412,
+    "happy": 0.281,
+    "uplifting": 0.143,
+    "aggressive": 0.089
+  },
+  "audio_analyzed": true
+}
+```
+
+## CLI reference
+
+| Command | Description |
+|---------|-------------|
+| `fetch` | Build a CSV from Genius + Spotify (+ optional preview MP3s) |
+| `discover` | Sample diverse tracks on Spotify and fetch lyrics |
+| `merge-kaggle` | Join lyrics CSV with Kaggle Spotify features |
+| `clean` / `enrich` | Filter or backfill Spotify metadata on existing datasets |
+| `train` | Fit valence, energy, and vibe models |
+| `train-eval` | Holdout split with charts and metrics |
+| `predict` | Score a single track by artist/title or raw lyrics |
 
 ## Dataset format
 
@@ -140,3 +222,9 @@ Artist + Title
   fetched_songs.csv ──► train ──► models/
                       └── predict (lyrics + optional preview audio)
 ```
+
+---
+
+<p align="center">
+  <sub>Built for music discovery, playlist curation, and mood-aware recommendations.</sub>
+</p>
