@@ -152,6 +152,35 @@ def test_merge_key_matches_accent_variants():
     assert _merge_key("Beyoncé", "Déjà Vu") == _merge_key("Beyonce", "Deja Vu")
 
 
+# --- Regression: evaluate must stay aligned when build_feature_matrix skips rows ---
+def test_evaluate_aligns_after_skipped_lyrics(tmp_path):
+    pytest.importorskip("matplotlib")
+    from mood_reader.evaluate import train_evaluate_labeled_split
+
+    df = _make_dataset(40, vibes=["happy", "chill", "melancholic", "energetic"])
+    # Inject a couple of rows that build_feature_matrix will skip (unusable lyrics).
+    df.loc[5, "lyrics"] = ""
+    df.loc[25, "lyrics"] = "[Verse]\n[Chorus]"
+
+    report = train_evaluate_labeled_split(
+        str(_write_csv(df, tmp_path / "labeled.csv")),
+        train_size=28,
+        test_size=12,
+        model_dir=tmp_path / "models",
+        charts_dir=tmp_path / "charts",
+    )
+    # Should complete without a length-mismatch and produce aligned predictions.
+    assert 0.0 <= report["vibe_accuracy_test"] <= 1.0
+    preds = pd.read_csv(tmp_path / "models" / "test_predictions.csv")
+    assert "pred_valence" in preds.columns
+    assert len(preds) > 0
+
+
+def _write_csv(df: pd.DataFrame, path: Path) -> Path:
+    df.to_csv(path, index=False)
+    return path
+
+
 # --- Bug 6: the curated artist dict must have no duplicate keys ---
 def test_build_diverse_tracks_has_no_duplicate_keys():
     src = (REPO_ROOT / "scripts" / "build_diverse_tracks.py").read_text()
