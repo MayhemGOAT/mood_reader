@@ -172,9 +172,14 @@ def train_evaluate_labeled_split(
     train_df.to_csv(model_dir / "train_split.csv", index=False)
     test_df.to_csv(model_dir / "test_split.csv", index=False)
 
+    n_train = len(train_df)
     feat_df = build_feature_matrix(pd.concat([train_df, test_df], ignore_index=True))
-    train_feat = feat_df.iloc[: len(train_df)].copy()
-    test_feat = feat_df.iloc[len(train_df) :].copy()
+    # build_feature_matrix drops rows with empty/unusable lyrics but preserves the
+    # source positional index, so select by label rather than by position.
+    train_feat = feat_df[feat_df.index < n_train].copy()
+    test_feat = feat_df[feat_df.index >= n_train].copy()
+    # Realign test_df to the surviving test rows so prediction columns line up.
+    test_df = test_df.iloc[[i - n_train for i in test_feat.index]].reset_index(drop=True)
 
     val_cols = _feature_cols_for_target("valence", include_spotify=include_spotify)
     eng_cols = _feature_cols_for_target("energy", include_spotify=include_spotify)
@@ -210,7 +215,7 @@ def train_evaluate_labeled_split(
     y_vibe_te = test_feat["vibe"].astype(str)
     y_tempo_te = test_feat["tempo"].astype(float) if "tempo" in test_feat.columns else None
 
-    model_cfg = _model_cfg_for_size(base_model_cfg, len(train_df))
+    model_cfg = _model_cfg_for_size(base_model_cfg, len(train_feat))
 
     val_model = _make_regressor(model_cfg)
     eng_model = _make_regressor(model_cfg)
@@ -244,8 +249,8 @@ def train_evaluate_labeled_split(
     vibe_report_lyrics = classification_report(y_vibe_te, vibe_pred_lyrics, zero_division=0)
 
     report = {
-        "train_songs": len(train_df),
-        "test_songs": len(test_df),
+        "train_songs": len(train_feat),
+        "test_songs": len(test_feat),
         "include_spotify_features": include_spotify,
         "valence_mae_test": float(mean_absolute_error(y_val_te, val_pred)),
         "valence_r2_test": float(r2_score(y_val_te, val_pred)),
