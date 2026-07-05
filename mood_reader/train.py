@@ -46,8 +46,9 @@ def _valid_vibe_mask(vibe_col: pd.Series) -> pd.Series:
 
 def build_feature_matrix(df: pd.DataFrame) -> pd.DataFrame:
     rows = []
+    kept_index = []
     skipped = 0
-    for _, row in tqdm(df.iterrows(), total=len(df), desc="Extracting features"):
+    for idx, row in tqdm(df.iterrows(), total=len(df), desc="Extracting features"):
         lyrics = row.get("lyrics")
         if pd.isna(lyrics) or not str(lyrics).strip():
             skipped += 1
@@ -81,6 +82,7 @@ def build_feature_matrix(df: pd.DataFrame) -> pd.DataFrame:
         if "tempo" in row and pd.notna(row["tempo"]):
             features["tempo"] = float(row["tempo"])
         rows.append(features)
+        kept_index.append(idx)
 
     if skipped:
         print(
@@ -88,7 +90,8 @@ def build_feature_matrix(df: pd.DataFrame) -> pd.DataFrame:
             file=sys.stderr,
         )
 
-    return pd.DataFrame(rows)
+    # Preserve the source-row index so callers can realign labels after skips.
+    return pd.DataFrame(rows, index=kept_index)
 
 
 def _make_regressor(cfg: dict) -> Pipeline:

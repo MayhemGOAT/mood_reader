@@ -172,9 +172,14 @@ def train_evaluate_labeled_split(
     train_df.to_csv(model_dir / "train_split.csv", index=False)
     test_df.to_csv(model_dir / "test_split.csv", index=False)
 
-    feat_df = build_feature_matrix(pd.concat([train_df, test_df], ignore_index=True))
-    train_feat = feat_df.iloc[: len(train_df)].copy()
-    test_feat = feat_df.iloc[len(train_df) :].copy()
+    n_train = len(train_df)
+    combined = pd.concat([train_df, test_df], ignore_index=True)
+    feat_df = build_feature_matrix(combined)
+    # build_feature_matrix may skip rows with unusable lyrics; align by the
+    # preserved source index rather than by position to avoid label mismatches.
+    train_feat = feat_df[feat_df.index < n_train].copy()
+    test_feat = feat_df[feat_df.index >= n_train].copy()
+    test_df = test_df.iloc[[idx - n_train for idx in test_feat.index]].reset_index(drop=True)
 
     val_cols = _feature_cols_for_target("valence", include_spotify=include_spotify)
     eng_cols = _feature_cols_for_target("energy", include_spotify=include_spotify)
