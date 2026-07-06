@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import re
+import unicodedata
 from pathlib import Path
 
 import pandas as pd
@@ -38,7 +39,11 @@ KAGGLE_TO_OUR = {
 def _normalize(text: object) -> str:
     if text is None or (isinstance(text, float) and pd.isna(text)):
         return ""
-    return re.sub(r"[^a-z0-9]", "", str(text).lower())
+    # Fold accents (Beyoncé -> beyonce) so accented and unaccented spellings match.
+    folded = "".join(
+        c for c in unicodedata.normalize("NFKD", str(text)) if not unicodedata.combining(c)
+    )
+    return re.sub(r"[^a-z0-9]", "", folded.lower())
 
 
 def _merge_key(artist: object, title: object) -> str:
