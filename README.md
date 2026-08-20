@@ -50,10 +50,10 @@ quadrantChart
     title Mood circumplex (valence × energy)
     x-axis Low valence --> High valence
     y-axis Low energy --> High energy
-    quadrant-1 uplifting
-    quadrant-2 happy
+    quadrant-1 happy / energetic
+    quadrant-2 aggressive / dark
     quadrant-3 melancholic
-    quadrant-4 aggressive
+    quadrant-4 chill / romantic
 ```
 
 ## Quick start
